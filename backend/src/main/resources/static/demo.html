@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>صفحه آزمایشی GptApiYar</title>
+<style>
+body{font-family:Tahoma,Arial,sans-serif;margin:0;min-height:100vh;background:#0e1527;color:#e5e9f7;display:grid;place-items:center}
+main{width:min(740px,90vw);background:#192338;border:1px solid #34435d;padding:28px;border-radius:20px}
+h1{font-size:23px}p{color:#a7b3c9;line-height:1.9}#messages{height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin:18px 0}.demo-message{padding:12px 16px;border-radius:12px;white-space:pre-wrap}.user{background:#273c65;margin-right:20%}.assistant{background:#243e32;margin-left:15%}textarea{width:100%;min-height:100px;box-sizing:border-box;background:#0c1529;border:1px solid #51627a;border-radius:12px;padding:14px;color:white;font:inherit}input{margin:12px 0}button{background:#4e8df1;border:0;border-radius:9px;color:white;padding:12px 24px;cursor:pointer}#demo-busy{display:none;color:#90bcfc}
+</style>
+</head><body><main>
+<h1>🧪 صفحه تست محلی GptApiYar</h1>
+<p>این صفحه فقط رفتار یک چت را شبیه‌سازی می‌کند؛ به ChatGPT یا سرویس هوش مصنوعی متصل نیست. از آن برای تأیید ارتباط CDP، ارسال پیام و خواندن پاسخ استفاده کن.</p>
+<div id="messages"></div>
+<textarea id="demo-prompt" placeholder="پیامی وارد کن ..."></textarea>
+<input id="demo-upload" type="file" multiple accept="image/*,audio/*,.pdf,.txt" />
+<div><button id="demo-send">ارسال پیام</button> <span id="demo-busy">در حال پاسخ...</span></div>
+</main><script>
+const promptEl=document.querySelector('#demo-prompt'),messages=document.querySelector('#messages');
+const add=(role,text)=>{const el=document.createElement('div');el.className='demo-message '+role;el.textContent=text;messages.appendChild(el);messages.scrollTop=messages.scrollHeight;};
+document.querySelector('#demo-send').addEventListener('click',()=>{
+ const text=promptEl.value.trim(),files=[...document.querySelector('#demo-upload').files].map(f=>f.name);
+ if(!text&&!files.length)return;
+ add('user',text+(files.length?'\nپیوست‌ها: '+files.join(', '):''));
+ document.querySelector('#demo-busy').style.display='inline';promptEl.value='';
+ setTimeout(()=>{add('assistant','پاسخ نمایشی گیت‌وی ✅\n\nپیام دریافت شد: '+(text||'(بدون متن)')+(files.length?'\nفایل‌های دریافت‌شده: '+files.join(', '):'')+'\n\nاین پاسخ توسط صفحه تست محلی تولید شده است.');document.querySelector('#demo-busy').style.display='none';document.querySelector('#demo-upload').value='';},650);
+});
+</script></body></html>
