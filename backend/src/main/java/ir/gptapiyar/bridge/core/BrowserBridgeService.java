@@ -14,6 +14,9 @@ import java.util.UUID;
 @Service
 public class BrowserBridgeService {
     // Playwright's Java API is single-threaded. All Playwright access is synchronized here.
+    private final CdpProbe probe;
+    public BrowserBridgeService(CdpProbe probe) { this.probe = probe; }
+
     private Playwright playwright;
     private Browser browser;
     private Page page;
@@ -59,6 +62,10 @@ public class BrowserBridgeService {
         required(request.sendSelector(), "Send selector");
         required(request.responseSelector(), "Response selector");
 
+        CdpProbe.Result inspection = probe.inspect(request.cdpEndpoint());
+        if (!inspection.reachable()) {
+            throw new IllegalStateException(inspection.message());
+        }
         disconnect();
         try {
             playwright = Playwright.create();

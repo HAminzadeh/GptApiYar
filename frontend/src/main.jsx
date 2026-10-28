@@ -27,7 +27,12 @@ function PreviewIcon({ file }) {
 }
 
 function App() {
-  const [threads, setThreads] = useState(() => [newThread()]);
+  const [threads, setThreads] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('gptapiyar.threads') || 'null');
+      return Array.isArray(saved) && saved.length ? saved : [newThread()];
+    } catch { return [newThread()]; }
+  });
   const [activeId, setActiveId] = useState(null);
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
@@ -39,10 +44,11 @@ function App() {
   const [status, setStatus] = useState('آماده برای اتصال');
   const [tabTitle, setTabTitle] = useState('');
   const [connecting, setConnecting] = useState(false);
+  const [cdpReport, setCdpReport] = useState(null);
   const [sending, setSending] = useState(false);
   const [showInspector, setShowInspector] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [dark, setDark] = useState(true);
+  // Light theme only; dark mode deliberately disabled.
   const [recording, setRecording] = useState(false);
   const [notice, setNotice] = useState('');
   const [logs, setLogs] = useState([{ at: 'شروع برنامه', text: 'کنسول آماده است', kind: 'neutral' }]);
@@ -56,13 +62,22 @@ function App() {
     setLogs(prev => [{ at: new Date().toLocaleTimeString('fa-IR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}), text, kind }, ...prev].slice(0, 12));
   };
   const request = async (path, options={}) => {
-    const result = await fetch(API + path, {
-      ...options,
-      headers: { 'X-Gateway-Token': token, ...(options.body instanceof FormData ? {} : { 'Content-Type':'application/json' }), ...options.headers }
-    });
-    const data = await result.json().catch(() => ({}));
-    if(!result.ok) throw new Error(data.error || `خطای سرور: ${result.status}`);
-    return data;
+    const { timeoutMs = 10000, ...fetchOptions } = options;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const result = await fetch(API + path, {
+        ...fetchOptions,
+        signal: controller.signal,
+        headers: { 'X-Gateway-Token': token, ...(fetchOptions.body instanceof FormData ? {} : { 'Content-Type':'application/json' }), ...fetchOptions.headers }
+      });
+      const data = await result.json().catch(() => ({}));
+      if(!result.ok) throw new Error(data.error || `خطای سرور: ${result.status}`);
+      return data;
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('مهلت درخواست تمام شد؛ وضعیت Chrome CDP و Spring Boot را بررسی کن.');
+      throw e;
+    } finally { clearTimeout(timer); }
   };
   const checkStatus = async () => {
     try {
@@ -75,6 +90,9 @@ function App() {
     }
   };
   useEffect(() => { checkStatus(); }, [token]);
+  useEffect(() => {
+    try { localStorage.setItem('gptapiyar.threads', JSON.stringify(threads)); } catch {}
+  }, [threads]);
   useEffect(() => { const timer = setInterval(checkStatus, 12000);return () => clearInterval(timer); }, [token]);
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior:'smooth' }); }, [threads, activeId, sending]);
 
@@ -83,10 +101,19 @@ function App() {
     setSettings(current => ({...current, ...(value === 'demo' ? DEMO : CUSTOM)}));
     setAdvanced(value === 'custom');
   };
+  const diagnose = async () => {
+    setNotice(''); setCdpReport(null);
+    try {
+      const report = await request('/bridge/diagnose?cdpEndpoint=' + encodeURIComponent(settings.cdpEndpoint), {timeoutMs: 6000});
+      setCdpReport(report);
+      setNotice(report.reachable ? `CDP فعال است؛ ${report.tabs.length} تب در دسترس است.` : report.message);
+      log(report.reachable ? 'CDP در دسترس است' : report.message, report.reachable ? 'success' : 'error');
+    } catch(e) {setNotice(e.message); log(e.message, 'error');}
+  };
   const connect = async () => {
     setConnecting(true);setNotice('');
     try {
-      const result = await request('/bridge/connect', { method:'POST', body: JSON.stringify(settings) });
+      const result = await request('/bridge/connect', { method:'POST', body: JSON.stringify(settings), timeoutMs: 18000 });
       setConnected(true);setTabTitle(result.title);setStatus('مرورگر متصل است');log('اتصال موفق: ' + result.title, 'success');
     } catch (e) {setConnected(false);setStatus('اتصال ناموفق');setNotice(e.message);log('خطای اتصال: ' + e.message, 'error');}
     finally {setConnecting(false);}
@@ -106,7 +133,7 @@ function App() {
     setInput('');setFiles([]);setSending(true);setNotice('');log('POST /api/chat', 'neutral');
     const payload = new FormData();payload.append('message', text);for(const f of files) payload.append('files', f, f.name);
     try {
-      const result = await request('/chat', { method:'POST', body:payload });
+      const result = await request('/chat', { method:'POST', body:payload, timeoutMs: 105000 });
       updateActive(t => ({...t,messages:[...t.messages,{id:result.id,role:'assistant',text:result.message}]}));
       log('پاسخ مرورگر دریافت شد', 'success');
     } catch(e) {
@@ -142,7 +169,7 @@ function App() {
   const handleKey = e => {if(e.key==='Enter' && !e.shiftKey){e.preventDefault();send();}};
   const copyApi = () => {navigator.clipboard?.writeText('http://127.0.0.1:8787/api/chat');setNotice('آدرس API کپی شد.');};
 
-  return <div className={dark ? 'app dark' : 'app light'} dir="rtl">
+  return <div className="app light" dir="rtl">
     {showSidebar && <aside className="sidebar">
       <div className="brand"><div className="brand-symbol"><Command size={19}/></div><div><b>GptApiYar</b><span>Browser Bridge</span></div><button className="icon-button push-left" title="بستن سایدبار" onClick={()=>setShowSidebar(false)}><PanelRightClose size={18}/></button></div>
       <button className="new-chat" onClick={createChat}><Plus size={18}/> گفت‌وگوی جدید <span className="short-key">Ctrl N</span></button>
@@ -156,7 +183,7 @@ function App() {
     <main className="main">
       <header className="topbar">
         <div className="topbar-start">{!showSidebar&&<button className="icon-button" onClick={()=>setShowSidebar(true)}><Menu size={20}/></button>}<div className="top-logo"><Sparkles size={17}/></div><span className="top-name">چت آزمایشی</span><span className="top-divider"></span><span className="top-sub">Local Browser Gateway</span></div>
-        <div className="top-actions"><div className={'connection-pill '+(isConnected?'active':'')}><span className="pulse online"></span>{isConnected?'Connected':'Disconnected'}</div><button className="icon-button" title={dark?'حالت روشن':'حالت تیره'} onClick={()=>setDark(!dark)}>{dark?<Sun size={19}/>:<Moon size={19}/>}</button><button className="icon-button" title="تنظیمات اتصال" onClick={()=>setShowInspector(v=>!v)}>{showInspector?<PanelRightClose size={20}/>:<PanelRightOpen size={20}/>}</button></div>
+        <div className="top-actions"><div className={'connection-pill '+(isConnected?'active':'')}><span className="pulse online"></span>{isConnected?'Connected':'Disconnected'}</div><button className="icon-button" title="تنظیمات اتصال" onClick={()=>setShowInspector(v=>!v)}>{showInspector?<PanelRightClose size={20}/>:<PanelRightOpen size={20}/>}</button></div>
       </header>
       <div className="conversation" id="conversation">
         {active.messages.length===0 ? <div className="empty-state">
@@ -192,6 +219,14 @@ function App() {
         <div className="form-field"><label>آدرس تب مرورگر</label><div className="input-wrap" dir="ltr"><Globe2 size={15}/><input value={settings.pageUrl} onChange={e=>setSettings({...settings,pageUrl:e.target.value})} spellCheck="false"/></div><small>آدرس دقیق همان تبی که باز کرده‌اید.</small></div>
         <button className="advanced-toggle" onClick={()=>setAdvanced(!advanced)}><Settings2 size={16}/> تنظیمات عناصر صفحه <ChevronDown className={advanced?'flip':''} size={16}/></button>
         {advanced&&<div className="selector-fields">{[['inputSelector','ورودی پیام'],['sendSelector','دکمه ارسال'],['responseSelector','المان پاسخ'],['busySelector','نشانگر انتظار (اختیاری)'],['fileSelector','ورودی فایل (اختیاری)']].map(([name,label])=><div className="form-field" key={name}><label>{label}</label><input className="simple-input" dir="ltr" spellCheck="false" value={settings[name]} onChange={e=>setSettings({...settings,[name]:e.target.value})}/></div>)}</div>}
+        <button className="cdp-diagnose-btn" onClick={diagnose}>بررسی CDP و مشاهده تب‌های مرورگر</button>
+        {cdpReport && <div className="cdp-report">
+          <b>{cdpReport.reachable ? `متصل: ${cdpReport.browser}` : 'CDP در دسترس نیست'}</b>
+          {cdpReport.tabs?.slice(0, 20).map((tab, i) => <button key={`${tab.url}-${i}`} title={tab.url}
+            onClick={() => {setSettings(current => ({...current, pageUrl: tab.url})); setPreset('custom'); setAdvanced(true);}}>
+            {tab.title || tab.url}
+          </button>)}
+        </div>}
         <div className="connection-actions"><button className="primary-action" disabled={connecting} onClick={connect}>{connecting?<RefreshCw className="spin" size={17}/>:<Power size={17}/>} {connecting?'در حال اتصال...':'اتصال به مرورگر'}</button><button className="secondary-action" title="قطع ارتباط" disabled={!isConnected} onClick={disconnect}><Unplug size={18}/></button></div>
         <div className="section-header api-title"><span>REST API</span><span className="muted">02</span></div>
         <div className="api-box"><div className="api-badge"><span className="method">POST</span><span>localhost:8787</span></div><div className="api-endpoint" dir="ltr">/api/chat <button title="کپی URL" onClick={copyApi}><Copy size={14}/></button></div></div>

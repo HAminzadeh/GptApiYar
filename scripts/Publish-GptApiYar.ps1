@@ -15,12 +15,13 @@ try {
     if (-not [string]::Equals($actualRoot.TrimEnd('\'), $root.TrimEnd('\'), [System.StringComparison]::OrdinalIgnoreCase)) {
         throw "Git repository root differs from project path: $actualRoot"
     }
-    $remote = (& git.exe remote get-url origin 2>$null)
-    if ($LASTEXITCODE -ne 0 -or -not $remote) {
+    $remoteNames = @(& git.exe remote)
+    if ($remoteNames -notcontains 'origin') {
         & git.exe remote add origin $repoUrl
         if ($LASTEXITCODE -ne 0) { throw 'Unable to add origin' }
     } else {
-        $remote = $remote.Trim()
+        $remote = (& git.exe remote get-url origin).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'Unable to read origin' }
         if ($remote -ne $repoUrl -and $remote -ne 'git@github.com:HAminzadeh/GptApiYar.git') {
             throw "Origin points somewhere else: $remote. No changes made to remote."
         }

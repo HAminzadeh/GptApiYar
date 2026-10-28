@@ -4,3 +4,18 @@ backend/target/
 .idea/
 .vscode/
 *.log
+
+# GptApiYar local secrets and browser state
+.env
+.env.*
+!.env.example
+**/application-local.yml
+**/application-local.yaml
+**/application-secret.yml
+**/application-secret.yaml
+*.pem
+*.p12
+*.pfx
+*.key
+ChromeProfile/
+_GptApiYar_Backups/

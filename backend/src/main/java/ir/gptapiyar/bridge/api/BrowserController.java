@@ -1,6 +1,7 @@
 package ir.gptapiyar.bridge.api;
 
 import ir.gptapiyar.bridge.core.BrowserBridgeService;
+import ir.gptapiyar.bridge.core.CdpProbe;
 import ir.gptapiyar.bridge.core.BrowserBridgeService.ConnectRequest;
 import ir.gptapiyar.bridge.core.BrowserBridgeService.BridgeStatus;
 import ir.gptapiyar.bridge.core.BrowserBridgeService.ChatReply;
@@ -16,8 +17,17 @@ import java.util.Map;
 @RequestMapping("/api")
 public class BrowserController {
     private final BrowserBridgeService bridge;
+    private final CdpProbe cdpProbe;
 
-    public BrowserController(BrowserBridgeService bridge) { this.bridge = bridge; }
+    public BrowserController(BrowserBridgeService bridge, CdpProbe cdpProbe) {
+        this.bridge = bridge;
+        this.cdpProbe = cdpProbe;
+    }
+
+    @GetMapping("/bridge/diagnose")
+    public CdpProbe.Result diagnose(@RequestParam(defaultValue = "http://127.0.0.1:9222") String cdpEndpoint) {
+        return cdpProbe.inspect(cdpEndpoint);
+    }
 
     @GetMapping("/health")
     public Map<String, Object> health() { return Map.of("ok", true, "service", "gptapiyar-browser-bridge"); }
