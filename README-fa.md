@@ -128,3 +128,19 @@ curl.exe -X POST http://127.0.0.1:8787/api/chat `
 - The extension is **not** installed automatically. Browser security requires explicit user approval.
 - Only local demo pages are supported. There is no ChatGPT automation, no ChatGPT API proxy, and no access to other installed extensions.
 - This change does not call `git`, commit, or push anything.
+
+
+## Smart Connector (v1)
+
+The React connection wizard automatically detects the installed GptApiYar extension on
+`http://127.0.0.1:5173`, checks the configured local gateway token, and connects the
+existing Chrome profile to the single authorized demo URL `http://127.0.0.1:8787/demo.html`.
+The extension can open the demo in a NEW TAB of the SAME Chrome, not a new browser.
+
+The application CANNOT silently install or enable a Chrome extension. If it is absent,
+the one-click button downloads its ZIP and shows manual Load unpacked instructions.
+Once installed, RELOAD the Chrome extension under `chrome://extensions` and RELOAD
+React so the new UI bridge content script is injected.
+
+This implementation does not automate ChatGPT or access third-party extensions.
+No commit or push is performed by this patch.

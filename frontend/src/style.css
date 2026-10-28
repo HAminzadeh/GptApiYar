@@ -56,3 +56,21 @@
 .gpt-token-row .simple-input{flex:1;min-width:0}
 .gpt-token-toggle{flex:none;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:10px 9px;font-size:11px;color:var(--text)}
 .gpt-token-toggle:hover{background:var(--hover)}
+
+/* gptapiyar-smart-onboarding-v1 */
+.smart-setup{display:flex;flex-direction:column;gap:11px}
+.smart-setup p{margin:0;line-height:1.9}
+.smart-setup-status{display:flex;flex-direction:column;gap:6px;font-size:11px}
+.smart-setup-ok{color:#10825d;font-weight:700}
+.smart-setup-warn{color:#9a620e;font-weight:700}
+.smart-setup-muted{color:var(--muted)}
+.smart-setup-label{font-size:11px;font-weight:700}
+.smart-url-input{width:100%;box-sizing:border-box;text-align:left;min-width:0}
+.smart-install-connect{width:100%;min-height:44px;display:flex;align-items:center;justify-content:center}
+.smart-install-connect:disabled{opacity:.6;cursor:wait}
+.smart-setup-message{background:#eef3ff;border:1px solid #d6e1fa;padding:10px;border-radius:9px;color:#1b3e74;font-size:11px;overflow-wrap:anywhere}
+.smart-setup-help{color:var(--accent);font-size:11px;text-decoration:underline;text-align:right;padding:4px 0}
+.smart-setup-guide{border:1px solid var(--line);background:var(--panel);border-radius:11px;padding:12px;font-size:11px;line-height:2}
+.smart-setup-guide ol{margin:8px 0 0;padding-right:19px}
+.smart-setup-guide a{color:var(--accent);font-weight:700}
+.smart-setup code{direction:ltr;unicode-bidi:isolate;font-size:10px;overflow-wrap:anywhere}

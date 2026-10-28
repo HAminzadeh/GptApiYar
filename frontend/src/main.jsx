@@ -42,6 +42,14 @@ function App() {
   const [showGatewayToken, setShowGatewayToken] = useState(false);
   const [settings, setSettings] = useState(INITIAL);
   const [transport, setTransport] = useState('extension');
+  // gptapiyar-smart-onboarding-v1
+  const [smartUrl, setSmartUrl] = useState('http://127.0.0.1:8787/demo.html');
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [smartBusy, setSmartBusy] = useState(false);
+  const [smartNotice, setSmartNotice] = useState('');
+  const [showSmartGuide, setShowSmartGuide] = useState(false);
+  const smartPendingRef = useRef(new Map());
+  const smartLastSeenRef = useRef(0);
   const [preset, setPreset] = useState('demo');
   const [advanced, setAdvanced] = useState(false);
   const [isConnected, setConnected] = useState(false);
@@ -94,6 +102,28 @@ function App() {
     }
   };
   useEffect(() => { checkStatus(); }, [token, transport]);
+  // Detect the extension in THIS Chrome profile; no extension ID or CDP required.
+  useEffect(() => {
+    const receive = event => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.source !== 'gptapiyar-extension-ui') return;
+      smartLastSeenRef.current = Date.now();
+      setExtensionInstalled(true);
+      if (data.type === 'result' && data.requestId) {
+        const done = smartPendingRef.current.get(data.requestId);
+        if (done) {smartPendingRef.current.delete(data.requestId); done(data.result);}
+      }
+    };
+    window.addEventListener('message', receive);
+    const ping = () => {
+      if (smartLastSeenRef.current && Date.now() - smartLastSeenRef.current > 6500) setExtensionInstalled(false);
+      window.postMessage({source: 'gptapiyar-web', type: 'request', action: 'ping', requestId: crypto.randomUUID()}, window.location.origin);
+    };
+    ping();
+    const timer = setInterval(ping, 2000);
+    return () => {window.removeEventListener('message', receive); clearInterval(timer);};
+  }, []);
   useEffect(() => {
     try { localStorage.setItem('gptapiyar.threads', JSON.stringify(threads)); } catch {}
   }, [threads]);
@@ -123,6 +153,38 @@ function App() {
       setStatus(result.connected ? 'Chrome اصلی متصل است' : 'افزونه به صفحه تست متصل نیست');
       setNotice(result.connected ? `افزونه به تب ${result.title || 'demo.html'} متصل است.` : 'افزونه را در Chrome اصلی از chrome://extensions نصب کن؛ سپس از پنجره افزونه تب demo.html را انتخاب و فعال کن.');
     } catch (e) { setNotice(e.message); }
+  };
+  const smartConnect = async () => {
+    const url = smartUrl.trim();
+    if (url !== 'http://127.0.0.1:8787/demo.html') {
+      setSmartNotice('این نسخه فقط به صفحهٔ تست محلی متصل می‌شود؛ آدرس ChatGPT یا سایت‌های دیگر پشتیبانی نمی‌شود.');
+      return;
+    }
+    if (!token.trim()) {setSmartNotice('ابتدا توکن محلی Spring Boot را وارد کن.'); return;}
+    if (!extensionInstalled) {
+      setShowSmartGuide(true);
+      setSmartNotice('افزونه در این Chrome شناسایی نشد. ZIP دانلود می‌شود؛ آن را Extract کن و با Load unpacked نصب کن. سپس صفحه React را Refresh کن.');
+      const anchor = document.createElement('a');
+      anchor.href = '/GptApiYar-Chrome-Extension.zip';
+      anchor.download = 'GptApiYar-Chrome-Extension.zip';
+      document.body.appendChild(anchor); anchor.click(); anchor.remove();
+      return;
+    }
+    setSmartBusy(true);setSmartNotice('در حال بررسی سرور، آماده‌سازی تب و تأیید اتصال...');setNotice('');
+    try {
+      const requestId = crypto.randomUUID();
+      const result = await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {smartPendingRef.current.delete(requestId); reject(new Error('افزونه در مهلت مشخص پاسخ نداد. افزونه و صفحه React را Reload کن.'));}, 22000);
+        smartPendingRef.current.set(requestId, answer => {clearTimeout(timer);resolve(answer);});
+        window.postMessage({source: 'gptapiyar-web', type: 'request', action: 'connect', requestId, token, url}, window.location.origin);
+      });
+      if (!result?.ok) throw new Error(result?.error || 'اتصال تأیید نشد.');
+      setConnected(true);setTabTitle(result.title || 'GptApiYar Demo');
+      setStatus('Chrome فعلی متصل است');
+      setSmartNotice('✅ اتصال واقعی برقرار شد. اکنون از فرم چت یک پیام آزمایشی بفرست.');
+      log('Chrome اصلی و تب تست متصل شدند', 'success');
+    } catch (error) {setConnected(false);setStatus('اتصال ناموفق');setSmartNotice(error.message);log('اتصال افزونه: '+error.message,'error');}
+    finally {setSmartBusy(false);}
   };
   const connect = async () => {
     setConnecting(true);setNotice('');
@@ -227,27 +289,36 @@ function App() {
     {showInspector&&<aside className="inspector">
       <div className="inspector-header"><div><span className="panel-eyebrow">CONTROL CENTER</span><h2>اتصال مرورگر</h2></div><button className="icon-button" onClick={()=>setShowInspector(false)}><X size={18}/></button></div>
       <div className="inspector-scroll">
-        <div className={'status-card '+(isConnected?'success':'')}><div className="status-icon"><Globe2 size={20}/></div><div><b>{isConnected?'اتصال برقرار است':'در انتظار اتصال'}</b><small dir="auto">{isConnected?(tabTitle||settings.pageUrl):'Chrome را در حالت CDP اجرا کنید'}</small></div><span className={'status-led '+(isConnected?'on':'')}></span></div>
+        <div className={'status-card '+(isConnected?'success':'')}><div className="status-icon"><Globe2 size={20}/></div><div><b>{isConnected?'اتصال برقرار است':'در انتظار اتصال'}</b><small dir="auto">{isConnected?(tabTitle||settings.pageUrl):(transport === 'extension' ? 'افزونه را بررسی یا نصب کن' : 'Chrome را در حالت CDP اجرا کنید')}</small></div><span className={'status-led '+(isConnected?'on':'')}></span></div>
         <div className="transport-choices">
           <button className={transport==='extension'?'selected':''} onClick={()=>{setTransport('extension');setConnected(false);setNotice('');}}>Chrome فعلی (افزونه)</button>
           <button className={transport==='cdp'?'selected':''} onClick={()=>{setTransport('cdp');setConnected(false);setNotice('');}}>CDP آزمایشی</button>
         </div>
-        {transport === 'extension' && <div className="extension-panel">
-          <b>اتصال بدون باز کردن Chrome دوم</b>
-          <p>افزونهٔ اختصاصی را از همین برنامه دانلود کن، ZIP را استخراج کن و پوشهٔ آن را در Chrome فعلی نصب کن. این نسخه فقط صفحهٔ تست محلی و پیام متنی را پشتیبانی می‌کند.</p>
-          {/* gptapiyar-extension-download-v1 */}
-          <a className="extension-download-link" href="/GptApiYar-Chrome-Extension.zip" download="GptApiYar-Chrome-Extension.zip">⬇ دانلود افزونهٔ Chrome (ZIP)</a>
-          <ol className="extension-install-steps">
-            <li>فایل ZIP دانلودشده را Extract All کن.</li>
-            <li>در همان Chrome اصلی، آدرس <code>chrome://extensions</code> را باز کن.</li>
-            <li>Developer mode را روشن کن و Load unpacked را بزن.</li>
-            <li>پوشه‌ای را انتخاب کن که فایل <code>manifest.json</code> داخل آن است.</li>
-            <li>بک‌اند را اجرا کن و <code>http://127.0.0.1:8787/demo.html</code> را باز کن.</li>
-            <li>از popup افزونه، توکن محلی را وارد کن، تب آزمایشی را انتخاب کن و اتصال را فعال کن.</li>
-            <li>در این صفحه دکمهٔ «بررسی اتصال افزونه» را بزن و یک پیام متنی آزمایشی ارسال کن.</li>
-          </ol>
-          <button className="cdp-diagnose-btn" onClick={checkExtension}>بررسی اتصال افزونهٔ Chrome</button>
-          <small>برای نصب افزونه: chrome://extensions — Developer mode — Load unpacked</small>
+        {transport === 'extension' && <div className="extension-panel smart-setup">
+          <b>اتصال آسان به Chrome فعلی</b>
+          <p>آدرس را بررسی کن و روی دکمه بزن. افزونهٔ نصب‌شده بررسی و تب مجاز در همین Chrome آماده می‌شود.</p>
+          <div className="smart-setup-status">
+            <span className={extensionInstalled ? 'smart-setup-ok' : 'smart-setup-warn'}>{extensionInstalled ? '✓ افزونه در همین Chrome شناسایی شد' : '○ افزونه در این صفحه شناسایی نشده'}</span>
+            <span className={isConnected ? 'smart-setup-ok' : 'smart-setup-muted'}>{isConnected ? '✓ ارتباط با Spring Boot برقرار است' : '○ منتظر اتصال تب آزمایشی'}</span>
+          </div>
+          <label className="smart-setup-label" htmlFor="gptapiyar-smart-url">آدرس تب موردنظر</label>
+          <input id="gptapiyar-smart-url" className="simple-input smart-url-input" dir="ltr" spellCheck="false" value={smartUrl} onChange={e=>setSmartUrl(e.target.value)}/>
+          <small>در نسخهٔ فعلی فقط http://127.0.0.1:8787/demo.html پشتیبانی می‌شود.</small>
+          <button className="primary-action smart-install-connect" onClick={smartConnect} disabled={smartBusy}>{smartBusy ? 'در حال بررسی و اتصال...' : 'نصب افزونه و اتصال به URL'}</button>
+          {smartNotice && <p className="smart-setup-message" role="status">{smartNotice}</p>}
+          <button className="smart-setup-help" onClick={()=>setShowSmartGuide(v=>!v)}>{showSmartGuide ? 'بستن راهنمای نصب' : 'افزونه نصب نیست؟ راهنمای نصب اولیه'}</button>
+          {showSmartGuide && <div className="smart-setup-guide">
+            <p>Chrome نصب خودکار و بی‌اجازهٔ افزونه را مجاز نمی‌داند. نصب اولیه یک بار باید با تأیید خودت انجام شود:</p>
+            <ol>
+              <li><a href="/GptApiYar-Chrome-Extension.zip" download>دانلود افزونه ZIP</a> و Extract All</li>
+              <li>بازکردن <code>chrome://extensions</code> در Chrome فعلی</li>
+              <li>فعال‌کردن Developer mode و انتخاب Load unpacked</li>
+              <li>انتخاب پوشهٔ حاوی <code>manifest.json</code></li>
+              <li>بارگذاری مجدد صفحهٔ React و کلیک دوباره روی دکمهٔ اتصال</li>
+            </ol>
+          </div>}
+          <button className="cdp-diagnose-btn" onClick={checkExtension}>بررسی دستی وضعیت اتصال</button>
+          <small>توکن موجود در بخش «توکن محلی برنامه» به افزونه منتقل می‌شود؛ نیازی به وارد کردن مجدد آن در Popup نیست.</small>
         </div>}
         {transport === 'cdp' && <>
         <div className="section-header"><span>پروفایل صفحه</span><span className="muted">01</span></div>
