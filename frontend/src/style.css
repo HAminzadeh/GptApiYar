@@ -11,3 +11,48 @@
 .app.light .cdp-report button{padding:7px;text-align:left;direction:ltr;border-bottom:1px solid #edf0f6;overflow-wrap:anywhere;font-size:10px;color:#40577d}
 /* gptapiyar-extension-mode-v1 */
 .transport-choices{display:flex;gap:8px;margin:10px 0 18px}.transport-choices button{flex:1;border:1px solid var(--line);background:var(--panel);padding:12px 8px;border-radius:10px;font-size:11px}.transport-choices button.selected{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:700}.extension-panel{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:15px;margin:10px 0 16px}.extension-panel b{font-size:12px}.extension-panel p{color:var(--muted);font-size:11px;line-height:2}.extension-panel small{display:block;color:var(--faint);font-size:10px;margin-top:10px;direction:ltr;text-align:left}
+
+/* gptapiyar-extension-download-v1: accessible light-mode download and steps */
+.extension-download-link {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 1px solid #4f5ee1;
+  background: #535fdf;
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+  line-height: 1.7;
+}
+.extension-download-link:hover,.extension-download-link:focus-visible {
+  background: #414bc6;
+  color: #fff;
+}
+.extension-install-steps {
+  margin: 12px 0 16px;
+  padding: 0 22px 0 4px;
+  font-size: 11px;
+  line-height: 2.15;
+  color: var(--text);
+}
+.extension-install-steps li { margin-bottom: 5px; }
+.extension-install-steps code {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 5px;
+  background: #e9edf8;
+  color: #263456;
+  font-size: 10px;
+}
+
+/* gptapiyar-react-token-visibility-v2 */
+.gpt-token-row{display:flex;gap:7px;align-items:center;direction:ltr}
+.gpt-token-row .simple-input{flex:1;min-width:0}
+.gpt-token-toggle{flex:none;border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:10px 9px;font-size:11px;color:var(--text)}
+.gpt-token-toggle:hover{background:var(--hover)}

@@ -115,3 +115,16 @@ curl.exe -X POST http://127.0.0.1:8787/api/chat `
 - اگر Spring Boot از IntelliJ اجرا می‌شود، در Run Configuration همین متغیر محیطی را جداگانه اضافه کنید.
 - در این نسخه اتصال Chrome از طریق CDP به Extension نیاز ندارد و Chrome روزمرهٔ شما به‌طور خودکار متصل نمی‌شود.
 - تم روشن، تشخیص CDP و پایداری نمایش خطاها جایگزین وعدهٔ اتصال خودکار به ChatGPT نیست.
+
+## Download and install the Chrome connector from the React UI
+
+`gptapiyar-extension-download-v1`
+
+- Run `scripts/Package-GptApiYar-Extension.ps1` after every extension-source change to rebuild `frontend/public/GptApiYar-Chrome-Extension.zip`.
+- Start React/Vite, choose **Chrome فعلی (افزونه)** and click **دانلود افزونه Chrome (ZIP)**.
+- Extract the ZIP, open `chrome://extensions`, enable Developer mode, select Load unpacked, and choose the extracted folder that contains `manifest.json`.
+- Start Spring Boot, open `http://127.0.0.1:8787/demo.html` in that same Chrome, then use the extension popup to select the tab, enter the local GATEWAY_TOKEN, and connect.
+- Return to React and click **بررسی اتصال افزونه Chrome**. Send a text message to confirm that the local demo responds.
+- The extension is **not** installed automatically. Browser security requires explicit user approval.
+- Only local demo pages are supported. There is no ChatGPT automation, no ChatGPT API proxy, and no access to other installed extensions.
+- This change does not call `git`, commit, or push anything.

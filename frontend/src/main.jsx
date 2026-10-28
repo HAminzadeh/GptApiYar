@@ -38,6 +38,8 @@ function App() {
   const [input, setInput] = useState('');
   const [files, setFiles] = useState([]);
   const [token, setToken] = useState('dev-change-this-token');
+  // gptapiyar-react-token-visibility-v2
+  const [showGatewayToken, setShowGatewayToken] = useState(false);
   const [settings, setSettings] = useState(INITIAL);
   const [transport, setTransport] = useState('extension');
   const [preset, setPreset] = useState('demo');
@@ -88,7 +90,7 @@ function App() {
       setTabTitle(s.title || '');
       setStatus(s.connected ? 'مرورگر متصل است' : 'اتصال برقرار نیست');
     } catch {
-      setConnected(false);setStatus('بک‌اند در دسترس نیست');
+      setConnected(false);setStatus('بررسی اتصال ناموفق؛ توکن React و سرور را کنترل کن');
     }
   };
   useEffect(() => { checkStatus(); }, [token, transport]);
@@ -232,7 +234,18 @@ function App() {
         </div>
         {transport === 'extension' && <div className="extension-panel">
           <b>اتصال بدون باز کردن Chrome دوم</b>
-          <p>افزونه را از پوشه chrome-extension با Load unpacked در Chrome اصلی نصب کن؛ سپس در پنجره افزونه، تب demo.html را انتخاب و اتصال را فعال کن. در این مرحله فقط صفحه آزمایشی محلی و پیام متنی پشتیبانی می‌شود.</p>
+          <p>افزونهٔ اختصاصی را از همین برنامه دانلود کن، ZIP را استخراج کن و پوشهٔ آن را در Chrome فعلی نصب کن. این نسخه فقط صفحهٔ تست محلی و پیام متنی را پشتیبانی می‌کند.</p>
+          {/* gptapiyar-extension-download-v1 */}
+          <a className="extension-download-link" href="/GptApiYar-Chrome-Extension.zip" download="GptApiYar-Chrome-Extension.zip">⬇ دانلود افزونهٔ Chrome (ZIP)</a>
+          <ol className="extension-install-steps">
+            <li>فایل ZIP دانلودشده را Extract All کن.</li>
+            <li>در همان Chrome اصلی، آدرس <code>chrome://extensions</code> را باز کن.</li>
+            <li>Developer mode را روشن کن و Load unpacked را بزن.</li>
+            <li>پوشه‌ای را انتخاب کن که فایل <code>manifest.json</code> داخل آن است.</li>
+            <li>بک‌اند را اجرا کن و <code>http://127.0.0.1:8787/demo.html</code> را باز کن.</li>
+            <li>از popup افزونه، توکن محلی را وارد کن، تب آزمایشی را انتخاب کن و اتصال را فعال کن.</li>
+            <li>در این صفحه دکمهٔ «بررسی اتصال افزونه» را بزن و یک پیام متنی آزمایشی ارسال کن.</li>
+          </ol>
           <button className="cdp-diagnose-btn" onClick={checkExtension}>بررسی اتصال افزونهٔ Chrome</button>
           <small>برای نصب افزونه: chrome://extensions — Developer mode — Load unpacked</small>
         </div>}
@@ -255,7 +268,7 @@ function App() {
         </>}
         <div className="section-header api-title"><span>REST API</span><span className="muted">02</span></div>
         <div className="api-box"><div className="api-badge"><span className="method">POST</span><span>localhost:8787</span></div><div className="api-endpoint" dir="ltr">/api/chat <button title="کپی URL" onClick={copyApi}><Copy size={14}/></button></div></div>
-        <div className="form-field"><label>توکن محلی برنامه</label><input className="simple-input" dir="ltr" type="password" value={token} onChange={e=>setToken(e.target.value)}/><small>توکن API مرورگر نیست؛ فقط برای حفاظت از گیت‌وی محلی است.</small></div>
+        <div className="form-field"><label>توکن محلی برنامه</label><div className="gpt-token-row"><input className="simple-input" dir="ltr" type={showGatewayToken ? "text" : "password"} value={token} onChange={e=>setToken(e.target.value)}/><button type="button" className="gpt-token-toggle" onClick={()=>setShowGatewayToken(v=>!v)}>{showGatewayToken ? "مخفی" : "نمایش"}</button></div><small>توکن API مرورگر نیست؛ فقط برای حفاظت از گیت‌وی محلی است.</small></div>
         <div className="section-header"><span>گزارش درخواست‌ها</span><span className="muted">03</span></div>
         <div className="log-box">{logs.slice(0,5).map((l,i)=><div className="log-entry" key={i}><span className={'log-dot '+l.kind}></span><span>{l.text}</span><small>{l.at}</small></div>)}</div>
         <div className="security-note"><ShieldCheck size={17}/><p>REST API و CDP را فقط روی Loopback اجرا کن. این نمونه برای توسعه و تست شخصی است.</p></div>

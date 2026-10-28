@@ -1,6 +1,8 @@
 // Restricted to GptApiYar's own demo.html by manifest. Never runs on ChatGPT.
 (() => {
   if (location.origin !== 'http://127.0.0.1:8787' || location.pathname !== '/demo.html') return;
+  // gptapiyar-content-diagnostics-v2
+  let lastError = '';
   let enabled = false;
   let token = '';
   let busy = false;
@@ -11,8 +13,12 @@
     if (message?.type === 'gptapiyar-connect') {
       token = String(message.token || '');
       enabled = token.length > 0;
+      lastError = '';
       sessionId = crypto.randomUUID();
       reply({ok: enabled, message: enabled ? 'Local demo connector activated' : 'Token is required'});
+    }
+    if (message?.type === 'gptapiyar-status') {
+      reply({ok:true, enabled, lastError});
     }
     if (message?.type === 'gptapiyar-disconnect') {
       enabled = false;
@@ -28,7 +34,7 @@
       cache: 'no-store'
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${payload.error || "Request failed"}`);
     return payload;
   }
 
@@ -58,6 +64,7 @@
     busy = true;
     try {
       const job = await api('/poll', {sessionId, pageUrl: location.href, title: document.title});
+      lastError = '';
       if (job.id) {
         try {
           const response = await runDemo(job.message || '');
@@ -68,7 +75,8 @@
       }
     } catch (err) {
       // Fail closed: a wrong local token must never repeatedly send privileged requests.
-      if (String(err.message).includes('401')) enabled = false;
+      lastError = String(err.message || err);
+      if (lastError.includes('401')) enabled = false;
       console.debug('[GptApiYar] Bridge poll:', err.message || err);
     } finally { busy = false; }
   }
