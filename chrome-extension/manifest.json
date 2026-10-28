@@ -1,7 +1,7 @@
 {
     "manifest_version":  3,
     "name":  "GptApiYar Local Demo Connector",
-    "version":  "0.2.0",
+    "version":  "0.3.1",
     "description":  "Connect the user-selected local demo tab in the current Chrome to GptApiYar. No ChatGPT access.",
     "permissions":  [
                         "tabs",
@@ -33,6 +33,17 @@
                                             ],
                                 "js":  [
                                            "ui-bridge.js"
+                                       ]
+                            },
+                            {
+                                "run_at":  "document_start",
+                                "all_frames":  false,
+                                "matches":  [
+                                                "http://127.0.0.1/*",
+                                                "http://localhost/*"
+                                            ],
+                                "js":  [
+                                           "ui-tabs.js"
                                        ]
                             }
                         ],

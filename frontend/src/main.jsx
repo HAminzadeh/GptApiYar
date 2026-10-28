@@ -42,6 +42,14 @@ function App() {
   const [showGatewayToken, setShowGatewayToken] = useState(false);
   const [settings, setSettings] = useState(INITIAL);
   const [transport, setTransport] = useState('extension');
+  // gptapiyar-tabs-v1: current Chrome tab discovery and explicit user selection.
+  const [chromeTabs, setChromeTabs] = useState([]);
+  const [chromeTabId, setChromeTabId] = useState('');
+  const [chromeTabsReady, setChromeTabsReady] = useState(false);
+  const [chromeTabsBusy, setChromeTabsBusy] = useState(false);
+  const [chromeTabsNote, setChromeTabsNote] = useState('');
+  const chromeTabCallbacks = useRef(new Map());
+
   // gptapiyar-smart-onboarding-v1
   const [smartUrl, setSmartUrl] = useState('http://127.0.0.1:8787/demo.html');
   const [extensionInstalled, setExtensionInstalled] = useState(false);
@@ -129,6 +137,93 @@ function App() {
   }, [threads]);
   useEffect(() => { const timer = setInterval(checkStatus, transport === 'extension' ? 3000 : 12000);return () => clearInterval(timer); }, [token, transport]);
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior:'smooth' }); }, [threads, activeId, sending]);
+
+  useEffect(() => {
+    const onMessage = event => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const data = event.data;
+      if (data?.source !== 'gptapiyar-tabs-extension') return;
+      if (data.type === 'ready') setChromeTabsReady(true);
+      if (data.type === 'result' && data.requestId) {
+        const cb = chromeTabCallbacks.current.get(data.requestId);
+        if (cb) { chromeTabCallbacks.current.delete(data.requestId); cb(data.result); }
+      }
+    };
+    window.addEventListener('message', onMessage);
+    window.postMessage({source: 'gptapiyar-tabs-web', type: 'ping'}, window.location.origin);
+    return () => {window.removeEventListener('message', onMessage); chromeTabCallbacks.current.clear();};
+  }, []);
+
+  const chromeTabRequest = (action, params = {}) => new Promise((resolve, reject) => {
+    const requestId = crypto.randomUUID();
+    const timer = setTimeout(() => {
+      chromeTabCallbacks.current.delete(requestId);
+      reject(new Error('پاسخی از افزونه دریافت نشد؛ افزونه و صفحه React را Reload کن.'));
+    }, 14000);
+    chromeTabCallbacks.current.set(requestId, result => {clearTimeout(timer); resolve(result);});
+    window.postMessage({source: 'gptapiyar-tabs-web', type: 'request', requestId, action, ...params}, window.location.origin);
+  });
+  const openSelectedChromeTab = async () => {
+    if (!chromeTabId) {setChromeTabsNote('ابتدا یک تب را انتخاب کن.'); return;}
+    setChromeTabsBusy(true);
+    try {
+      // Clipboard access requires this direct user click; do it before tab focus.
+      if (input.trim()) {
+        if (!navigator.clipboard?.writeText) throw new Error('مرورگر اجازهٔ کپی در کلیپ‌بورد را نداد.');
+        await navigator.clipboard.writeText(input.trim());
+      }
+      const result = await chromeTabRequest('focus', {tabId: Number(chromeTabId)});
+      if (!result?.ok) throw new Error(result?.error || 'فعال‌کردن تب انجام نشد.');
+      setChromeTabsNote(input.trim()
+        ? 'متن در کلیپ‌بورد کپی شد. در تب بازشده خودت پیام را Paste و ارسال کن؛ سپس پاسخ را Copy کن.'
+        : 'تب در Chrome فعال شد. برای ارسال، ابتدا یک پیام در فرم React بنویس.');
+    } catch (e) {setChromeTabsNote(e.message);}
+    finally {setChromeTabsBusy(false);}
+  };
+  const insertManualResponse = async () => {
+    try {
+      if (!navigator.clipboard?.readText) throw new Error('خواندن کلیپ‌بورد از این مرورگر ممکن نیست.');
+      const copied = (await navigator.clipboard.readText()).trim();
+      if (!copied) throw new Error('متنی در کلیپ‌بورد وجود ندارد.');
+      updateActive(t => ({...t,messages:[...t.messages,{id:crypto.randomUUID(),role:'assistant',text:'[پاسخ منتقل‌شده به‌صورت دستی]\n\n'+copied}]}));
+      setChromeTabsNote('متن پاسخ دستی وارد گفتگو شد. این پاسخ از سایت به‌طور خودکار استخراج نشده است.');
+    } catch (e) {setChromeTabsNote(e.message);}
+  };
+  const refreshChromeTabs = async () => {
+    setChromeTabsBusy(true);
+    try {
+      const result = await chromeTabRequest('list');
+      if (!result?.ok) throw new Error(result?.error || 'دریافت تب‌ها ناموفق بود.');
+      setChromeTabs(result.tabs || []);
+      setChromeTabId(current => result.tabs?.some(t => String(t.id) === current)
+        ? current : String(result.tabs?.find(t => t.kind === 'demo')?.id || result.tabs?.[0]?.id || ''));
+      setChromeTabsNote(`${(result.tabs || []).length} تب شناسایی شد. انتخاب تب به معنی اجازه خواندن پیام‌های آن نیست.`);
+    } catch(e) {setChromeTabsNote(e.message);}
+    finally {setChromeTabsBusy(false);}
+  };
+  useEffect(() => {
+    if (chromeTabsReady && transport === 'extension') refreshChromeTabs();
+  }, [chromeTabsReady, transport]);
+  const selectChromeTab = async () => {
+    if (!chromeTabId) {setChromeTabsNote('ابتدا تب موردنظر را انتخاب کن.'); return;}
+    setChromeTabsBusy(true);
+    try {
+      const result = await chromeTabRequest('select', {tabId: Number(chromeTabId), token});
+      if (!result?.ok) throw new Error(result?.error || 'انتخاب تب ناموفق بود.');
+      setChromeTabsNote(result.message || 'تب انتخاب شد.');
+      if (result.connected) {
+        setConnected(true);
+        setTabTitle(result.selected?.title || 'Local demo');
+        setStatus('تب آزمایشی متصل است');
+        log('Chrome: demo tab connected', 'success');
+      } else {
+        setConnected(false);
+        setStatus('تب انتخاب شد؛ اتصال چت فعال نیست');
+        log('Chrome tab selected (metadata only)', 'neutral');
+      }
+    } catch(e) { setChromeTabsNote(e.message); log(e.message, 'error'); }
+    finally {setChromeTabsBusy(false);}
+  };
 
   const choosePreset = value => {
     setPreset(value);
@@ -295,6 +390,22 @@ function App() {
           <button className={transport==='cdp'?'selected':''} onClick={()=>{setTransport('cdp');setConnected(false);setNotice('');}}>CDP آزمایشی</button>
         </div>
         {transport === 'extension' && <div className="extension-panel smart-setup">
+          <div className="all-tabs-panel">
+            <div className="all-tabs-header"><b>تب‌های باز Chrome اصلی</b><button type="button" onClick={refreshChromeTabs} disabled={chromeTabsBusy}>بازخوانی تب‌ها</button></div>
+            {!chromeTabsReady ? <p className="all-tabs-help">افزونه هنوز در این صفحه شناسایی نشده است. افزونه را Reload کن و React را Refresh کن.</p> : <>
+              <label htmlFor="gpy-chrome-tabs">انتخاب تب مرورگر</label>
+              <select id="gpy-chrome-tabs" value={chromeTabId} onChange={e=>setChromeTabId(e.target.value)}>
+                <option value="">انتخاب کن...</option>
+                {chromeTabs.map(t=><option key={t.id} value={String(t.id)}>{t.kind==='demo'?'✅ ':'◦ '}{t.title} — {t.url}</option>)}
+              </select>
+              <button type="button" className="primary-action" disabled={chromeTabsBusy || !chromeTabId} onClick={selectChromeTab}>{chromeTabsBusy ? 'در حال بررسی...' : 'انتخاب و اتصال به تب'}</button>
+              <button type="button" className="all-tabs-secondary" disabled={chromeTabsBusy || !chromeTabId} onClick={openSelectedChromeTab}>کپی متن پیام و رفتن به تب</button>
+              <button type="button" className="all-tabs-secondary" disabled={chromeTabsBusy} onClick={insertManualResponse}>ثبت پاسخ کپی‌شده در گفتگو</button>
+              <p className="all-tabs-help">تمام تب‌های Chrome نمایش داده می‌شوند؛ محدودیت دامنه برای فهرست وجود ندارد. ارسال/دریافت خودکار فقط در صفحهٔ آزمایشی خودمان فعال است. در سایت‌های دیگر می‌توان متن را کپی و تب را باز کرد و پاسخ کپی‌شده را دستی وارد نمود. محتوای تب‌ها بدون اجازه خوانده نمی‌شود.</p>
+            </>}
+            {chromeTabsNote && <p className="all-tabs-note" role="status">{chromeTabsNote}</p>}
+          </div>
+
           <b>اتصال آسان به Chrome فعلی</b>
           <p>آدرس را بررسی کن و روی دکمه بزن. افزونهٔ نصب‌شده بررسی و تب مجاز در همین Chrome آماده می‌شود.</p>
           <div className="smart-setup-status">

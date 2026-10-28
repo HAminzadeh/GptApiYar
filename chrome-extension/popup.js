@@ -42,22 +42,23 @@ function isDemoTab(tab) {
   } catch { return false; }
 }
 async function refresh() {
-  const tabs = (await chrome.tabs.query({url: 'http://127.0.0.1/*'})).filter(isDemoTab);
+  const tabs = (await chrome.tabs.query({})).filter(t => Number.isInteger(t.id));
   const select = $('tab');
   const previous = select.value;
   select.replaceChildren();
-  for (const tab of tabs) {
+  const ordered = tabs.sort((a, b) => Number(b.active) - Number(a.active));
+  for (const tab of ordered) {
     const option = document.createElement('option');
     option.value = String(tab.id);
-    option.textContent = `${tab.title || 'Local demo'} (Tab ${tab.id})`;
+    const supported = isDemoTab(tab);
+    let cleanUrl = tab.url || '';
+    try { const u = new URL(cleanUrl); cleanUrl = u.origin + u.pathname; } catch {}
+    option.textContent = `${supported ? '✅' : '◦'} ${tab.title || 'بدون عنوان'} — ${cleanUrl.slice(0, 70)}`;
     select.appendChild(option);
   }
-  if (tabs.some(t => String(t.id) === previous)) select.value = previous;
-  status(tabs.length
-    ? `${tabs.length} تب پیدا شد. این فقط شناسایی تب است؛ دکمه «اتصال» را هم بزن.`
-    : 'تب demo.html پیدا نشد. صفحهٔ تست را در همین Chrome باز کن.');
+  if (ordered.some(t => String(t.id) === previous)) select.value = previous;
+  status(`${ordered.length} تب یافت شد. فقط demo.html از ارسال پیام پشتیبانی می‌کند.`);
 }
-
 $('toggle-token').addEventListener('click', () => {
   const visible = $('token').type === 'password';
   $('token').type = visible ? 'text' : 'password';
@@ -80,6 +81,17 @@ $('test-backend').addEventListener('click', async () => {
 });
 $('connect').addEventListener('click', async () => {
   const tabId = Number($('tab').value);
+  // All Chrome tabs are listed, but non-demo sites are metadata-only.
+  let chosen;
+  try { chosen = await chrome.tabs.get(tabId); } catch { status('تب انتخاب‌شده دیگر باز نیست؛ بازخوانی کن.'); return; }
+  if (!isDemoTab(chosen)) {
+    let safeUrl = chosen.url || '';
+    try { const u = new URL(safeUrl); safeUrl = u.origin + u.pathname; } catch {}
+    await chrome.storage.session.set({gptapiyarSelectedTab: {id: tabId, title: chosen.title, url: safeUrl}});
+    status('تب انتخاب و ثبت شد. این سایت فقط در فهرست قابل مشاهده است؛ ارتباط چت فقط برای demo.html فعال است.');
+    return;
+  }
+
   const token = tokenValue();
   if (!Number.isInteger(tabId) || tabId <= 0) {
     status('ابتدا یک تب demo.html انتخاب کن.'); return;

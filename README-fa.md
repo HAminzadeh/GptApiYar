@@ -144,3 +144,20 @@ React so the new UI bridge content script is injected.
 
 This implementation does not automate ChatGPT or access third-party extensions.
 No commit or push is performed by this patch.
+
+## Listing all Chrome tabs and manual message handoff
+
+The installed extension can list all tabs visible to the Chrome profile via `chrome.tabs.query({})`.
+The React page and the extension popup display the tab titles and URL origins/paths,
+without copying URL queries or fragments. Selecting the local `/demo.html` tab keeps
+working with the existing authenticated Spring Boot chat bridge. Selecting any other
+website is **metadata only** (no page-content reading, script injection or chat API).
+This also applies to ChatGPT tabs, which are not automatically converted into API endpoints.
+For all tabs, the UI supports a user-click action to copy the draft prompt and focus the
+selected tab, then manually import a copied reply. It does not submit or scrape content.
+Restricted Chrome internal pages can appear in the list but cannot be controlled.
+
+To refresh the installed extension: chrome://extensions -> Reload, then refresh the
+React tab at http://127.0.0.1:5173. Rebuild frontend/public/GptApiYar-Chrome-Extension.zip
+using scripts/Package-GptApiYar-Extension.ps1 whenever extension sources change.
+This patch never commits or pushes changes.

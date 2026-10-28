@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 import java.util.Map;
 
@@ -30,25 +31,38 @@ public class BrowserController {
     }
 
     @GetMapping("/health")
-    public Map<String, Object> health() { return Map.of("ok", true, "service", "gptapiyar-browser-bridge"); }
+    public Map<String, Object> health() {
+        return Map.of("ok", true, "service", "gptapiyar-browser-bridge");
+    }
 
     @GetMapping("/bridge/status")
-    public BridgeStatus status() { return bridge.status(); }
+    public BridgeStatus status() {
+        return bridge.status();
+    }
 
     @GetMapping("/bridge/tabs")
-    public List<String> tabs() { return bridge.listTabs(); }
+    public List<String> tabs() {
+        return bridge.listTabs();
+    }
 
     @PostMapping("/bridge/connect")
-    public BridgeStatus connect(@RequestBody ConnectRequest request) { return bridge.connect(request); }
+    public BridgeStatus connect(@RequestBody ConnectRequest request) {
+        return bridge.connect(request);
+    }
 
     @PostMapping("/bridge/disconnect")
-    public BridgeStatus disconnect() { bridge.disconnect(); return bridge.status(); }
+    public BridgeStatus disconnect() {
+        bridge.disconnect();
+        return bridge.status();
+    }
 
     @PostMapping(value = "/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ChatReply chat(
-        @RequestParam(value = "message", required = false, defaultValue = "") String message,
-        @RequestParam(value = "files", required = false) List<MultipartFile> files
-    ) { return bridge.send(message, files == null ? List.of() : files); }
+            @RequestParam(value = "message", required = false, defaultValue = "") String message,
+            @RequestParam(value = "files", required = false) List<MultipartFile> files
+    ) {
+        return bridge.send(message, files == null ? List.of() : files);
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> invalid(IllegalArgumentException error) {

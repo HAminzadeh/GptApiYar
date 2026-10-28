@@ -6,8 +6,8 @@ $root = [System.IO.Path]::GetFullPath($ProjectRoot)
 $source = Join-Path $root 'chrome-extension'
 $destinationDir = Join-Path $root 'frontend\public'
 $destination = Join-Path $destinationDir 'GptApiYar-Chrome-Extension.zip'
-$files = @('manifest.json','popup.html','popup.js','content.js','background.js','ui-bridge.js','README-fa.md')
-foreach ($name in @($files | Where-Object { $_ -ne 'README-fa.md' })) {
+$files = @('manifest.json','popup.html','popup.js','content.js','background.js','ui-bridge.js','tab-enumeration.js','ui-tabs.js','README-fa.md')
+foreach ($name in @($files | Where-Object { $_ -ne 'tab-enumeration.js','ui-tabs.js','README-fa.md' })) {
     if (-not (Test-Path -LiteralPath (Join-Path $source $name) -PathType Leaf)) {
         throw "Missing required extension file: $name"
     }

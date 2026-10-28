@@ -80,3 +80,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     .catch(error => sendResponse({ok: false, error: String(error.message || error)}));
   return true;
 });
+importScripts('tab-enumeration.js');
