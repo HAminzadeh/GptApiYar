@@ -1,0 +1,16 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="UTF-8">
+<style>
+*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;margin:0;width:340px;padding:18px;background:#fff;color:#18243a}h3{margin:0 0 8px}p{font-size:11px;line-height:1.9;color:#64748b}label{font-size:11px;font-weight:bold}input,select{width:100%;margin:7px 0 14px;padding:10px;border:1px solid #cbd5e1;border-radius:9px;background:white;color:#172033}button{border:none;background:#4f61db;color:#fff;border-radius:9px;padding:11px 12px;cursor:pointer;margin-top:5px;width:100%;font:inherit;font-size:11px}button.secondary{background:#e9eef8;color:#283858}.note{background:#f1f5f9;border-radius:9px;padding:10px;font-size:11px;line-height:1.8;margin-top:12px;white-space:pre-wrap}
+</style></head><body>
+<h3>GptApiYar — Chrome اصلی</h3>
+<p>اتصال فقط به صفحهٔ آزمایشی محلی با انتخاب شما انجام می‌شود. این افزونه به ChatGPT دسترسی ندارد.</p>
+<label for="token">توکن محلی Spring Boot</label>
+<input id="token" type="password" autocomplete="off" placeholder="GATEWAY_TOKEN">
+<label for="tab">تب مجاز</label>
+<select id="tab"></select>
+<button id="refresh" class="secondary">بازخوانی تب‌ها</button>
+<button id="open" class="secondary">باز کردن صفحهٔ تست در همین Chrome</button>
+<button id="connect">اتصال به تب انتخاب‌شده</button>
+<button id="disconnect" class="secondary">قطع ارتباط با تب</button>
+<div id="status" class="note">آمادهٔ انتخاب تب</div>
+<script src="popup.js"></script></body></html>

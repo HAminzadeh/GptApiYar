@@ -4,6 +4,7 @@ import { Activity, ArrowDownLeft, ArrowUp, AudioLines, Bot, Check, ChevronDown, 
 import './style.css';
 
 const API = 'http://127.0.0.1:8787/api';
+// gptapiyar-extension-mode-v1: opt-in local demo connector
 const DEMO = {
   pageUrl: 'http://127.0.0.1:8787/demo.html',
   inputSelector: '#demo-prompt',
@@ -38,6 +39,7 @@ function App() {
   const [files, setFiles] = useState([]);
   const [token, setToken] = useState('dev-change-this-token');
   const [settings, setSettings] = useState(INITIAL);
+  const [transport, setTransport] = useState('extension');
   const [preset, setPreset] = useState('demo');
   const [advanced, setAdvanced] = useState(false);
   const [isConnected, setConnected] = useState(false);
@@ -81,7 +83,7 @@ function App() {
   };
   const checkStatus = async () => {
     try {
-      const s = await request('/bridge/status');
+      const s = await request(transport === 'extension' ? '/extension/status' : '/bridge/status');
       setConnected(!!s.connected);
       setTabTitle(s.title || '');
       setStatus(s.connected ? 'مرورگر متصل است' : 'اتصال برقرار نیست');
@@ -89,11 +91,11 @@ function App() {
       setConnected(false);setStatus('بک‌اند در دسترس نیست');
     }
   };
-  useEffect(() => { checkStatus(); }, [token]);
+  useEffect(() => { checkStatus(); }, [token, transport]);
   useEffect(() => {
     try { localStorage.setItem('gptapiyar.threads', JSON.stringify(threads)); } catch {}
   }, [threads]);
-  useEffect(() => { const timer = setInterval(checkStatus, 12000);return () => clearInterval(timer); }, [token]);
+  useEffect(() => { const timer = setInterval(checkStatus, transport === 'extension' ? 3000 : 12000);return () => clearInterval(timer); }, [token, transport]);
   useEffect(() => { scrollRef.current?.scrollIntoView({ behavior:'smooth' }); }, [threads, activeId, sending]);
 
   const choosePreset = value => {
@@ -110,6 +112,16 @@ function App() {
       log(report.reachable ? 'CDP در دسترس است' : report.message, report.reachable ? 'success' : 'error');
     } catch(e) {setNotice(e.message); log(e.message, 'error');}
   };
+  const checkExtension = async () => {
+    setNotice('');
+    try {
+      const result = await request('/extension/status');
+      setConnected(!!result.connected);
+      setTabTitle(result.title || '');
+      setStatus(result.connected ? 'Chrome اصلی متصل است' : 'افزونه به صفحه تست متصل نیست');
+      setNotice(result.connected ? `افزونه به تب ${result.title || 'demo.html'} متصل است.` : 'افزونه را در Chrome اصلی از chrome://extensions نصب کن؛ سپس از پنجره افزونه تب demo.html را انتخاب و فعال کن.');
+    } catch (e) { setNotice(e.message); }
+  };
   const connect = async () => {
     setConnecting(true);setNotice('');
     try {
@@ -125,6 +137,7 @@ function App() {
   const updateActive = fn => setThreads(current => current.map(t => t.id === active.id ? fn(t) : t));
   const send = async (manualText=null) => {
     if(sending) return;
+    if(transport === 'extension' && files.length) { setNotice('حالت افزونه در این نسخه فقط متن را در صفحه demo.html تست می‌کند؛ برای فایل از حالت CDP استفاده کن.'); return; }
     const text = (typeof manualText === 'string' ? manualText : input).trim();
     if(!text && files.length === 0) return;
     if(!isConnected) {setNotice('ابتدا در بخش Browser Connection به تب مرورگر متصل شو.');return;}
@@ -133,7 +146,7 @@ function App() {
     setInput('');setFiles([]);setSending(true);setNotice('');log('POST /api/chat', 'neutral');
     const payload = new FormData();payload.append('message', text);for(const f of files) payload.append('files', f, f.name);
     try {
-      const result = await request('/chat', { method:'POST', body:payload, timeoutMs: 105000 });
+      const result = await request(transport === 'extension' ? '/extension/chat' : '/chat', { method:'POST', body:payload, timeoutMs: 105000 });
       updateActive(t => ({...t,messages:[...t.messages,{id:result.id,role:'assistant',text:result.message}]}));
       log('پاسخ مرورگر دریافت شد', 'success');
     } catch(e) {
@@ -213,6 +226,17 @@ function App() {
       <div className="inspector-header"><div><span className="panel-eyebrow">CONTROL CENTER</span><h2>اتصال مرورگر</h2></div><button className="icon-button" onClick={()=>setShowInspector(false)}><X size={18}/></button></div>
       <div className="inspector-scroll">
         <div className={'status-card '+(isConnected?'success':'')}><div className="status-icon"><Globe2 size={20}/></div><div><b>{isConnected?'اتصال برقرار است':'در انتظار اتصال'}</b><small dir="auto">{isConnected?(tabTitle||settings.pageUrl):'Chrome را در حالت CDP اجرا کنید'}</small></div><span className={'status-led '+(isConnected?'on':'')}></span></div>
+        <div className="transport-choices">
+          <button className={transport==='extension'?'selected':''} onClick={()=>{setTransport('extension');setConnected(false);setNotice('');}}>Chrome فعلی (افزونه)</button>
+          <button className={transport==='cdp'?'selected':''} onClick={()=>{setTransport('cdp');setConnected(false);setNotice('');}}>CDP آزمایشی</button>
+        </div>
+        {transport === 'extension' && <div className="extension-panel">
+          <b>اتصال بدون باز کردن Chrome دوم</b>
+          <p>افزونه را از پوشه chrome-extension با Load unpacked در Chrome اصلی نصب کن؛ سپس در پنجره افزونه، تب demo.html را انتخاب و اتصال را فعال کن. در این مرحله فقط صفحه آزمایشی محلی و پیام متنی پشتیبانی می‌شود.</p>
+          <button className="cdp-diagnose-btn" onClick={checkExtension}>بررسی اتصال افزونهٔ Chrome</button>
+          <small>برای نصب افزونه: chrome://extensions — Developer mode — Load unpacked</small>
+        </div>}
+        {transport === 'cdp' && <>
         <div className="section-header"><span>پروفایل صفحه</span><span className="muted">01</span></div>
         <div className="profile-choices"><button className={preset==='demo'?'chosen':''} onClick={()=>choosePreset('demo')}><span>🧪</span> تست محلی</button><button className={preset==='custom'?'chosen':''} onClick={()=>choosePreset('custom')}><span>🌐</span> سفارشی</button></div>
         <div className="form-field"><label>آدرس CDP</label><div className="input-wrap" dir="ltr"><Link2 size={15}/><input value={settings.cdpEndpoint} onChange={e=>setSettings({...settings,cdpEndpoint:e.target.value})} spellCheck="false"/></div><small>Chrome باید با پورت دیباگ اجرا شده باشد.</small></div>
@@ -228,6 +252,7 @@ function App() {
           </button>)}
         </div>}
         <div className="connection-actions"><button className="primary-action" disabled={connecting} onClick={connect}>{connecting?<RefreshCw className="spin" size={17}/>:<Power size={17}/>} {connecting?'در حال اتصال...':'اتصال به مرورگر'}</button><button className="secondary-action" title="قطع ارتباط" disabled={!isConnected} onClick={disconnect}><Unplug size={18}/></button></div>
+        </>}
         <div className="section-header api-title"><span>REST API</span><span className="muted">02</span></div>
         <div className="api-box"><div className="api-badge"><span className="method">POST</span><span>localhost:8787</span></div><div className="api-endpoint" dir="ltr">/api/chat <button title="کپی URL" onClick={copyApi}><Copy size={14}/></button></div></div>
         <div className="form-field"><label>توکن محلی برنامه</label><input className="simple-input" dir="ltr" type="password" value={token} onChange={e=>setToken(e.target.value)}/><small>توکن API مرورگر نیست؛ فقط برای حفاظت از گیت‌وی محلی است.</small></div>

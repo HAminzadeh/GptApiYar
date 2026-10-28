@@ -9,3 +9,5 @@
 .app.light .cdp-report{display:flex;flex-direction:column;gap:5px;margin-top:9px;padding:10px;background:#fff;border:1px solid #e4e9f1;border-radius:11px;max-height:200px;overflow:auto}
 .app.light .cdp-report b{font-size:11px;color:#1c2640}
 .app.light .cdp-report button{padding:7px;text-align:left;direction:ltr;border-bottom:1px solid #edf0f6;overflow-wrap:anywhere;font-size:10px;color:#40577d}
+/* gptapiyar-extension-mode-v1 */
+.transport-choices{display:flex;gap:8px;margin:10px 0 18px}.transport-choices button{flex:1;border:1px solid var(--line);background:var(--panel);padding:12px 8px;border-radius:10px;font-size:11px}.transport-choices button.selected{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);font-weight:700}.extension-panel{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:15px;margin:10px 0 16px}.extension-panel b{font-size:12px}.extension-panel p{color:var(--muted);font-size:11px;line-height:2}.extension-panel small{display:block;color:var(--faint);font-size:10px;margin-top:10px;direction:ltr;text-align:left}
